@@ -7,8 +7,8 @@ def agreement(s,d):
  if time(d['ends'])<=time(c.now):fail('新寄售协议到期时间必须晚于当前时间')
  d['ends']=time(d['ends']).isoformat();x=Agreement(**d);s.add(x);s.flush();return x
 def amend(s,id,d):
- lock(s);a=get(s,Agreement,id);ids={g.id for g in rows(s,Garment) if g.agreement_id==a.id}
- if any(x.garment_id in ids and x.state=='settled' for x in rows(s,Sale)):fail('已有结算账，不允许修改佣金')
+ lock(s);a=get(s,Agreement,id)
+ if d['commission_bp']==a.commission_bp:fail('新佣金与原佣金相同，无需修订')
  x=Amendment(agreement_id=id,old_bp=a.commission_bp,new_bp=d['commission_bp'],reason=d['reason']);s.add(x);a.commission_bp=d['commission_bp'];s.flush();return x
 def intake(s,d):
  c=lock(s);a=get(s,Agreement,d['agreement_id'])

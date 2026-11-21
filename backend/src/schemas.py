@@ -20,7 +20,7 @@ class AssessmentIn(Input):
 class FittingIn(Input):
  garment_id:int;profile_id:int;slot:int=Field(ge=1,le=2);starts:str;ends:str
 class SaleIn(Input):
- fitting_id:int;price_cents:int=Field(gt=0,le=10000000)
+ fitting_id:int;price_cents:int=Field(gt=0,le=10000000);assessment_id:int|None=None
 class ReturnIn(Input):
  sale_id:int;reason:str=Field(min_length=8,max_length=500)
 class InspectionIn(Input):

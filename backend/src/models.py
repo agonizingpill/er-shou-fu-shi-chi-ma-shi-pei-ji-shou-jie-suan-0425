@@ -27,13 +27,22 @@ class FitProfile(Base):
  id=Column(Integer,primary_key=True);code=Column(String(40),unique=True,nullable=False);chest=Column(Float,nullable=False);shoulder=Column(Float,nullable=False)
 class FitAssessment(Base):
  __tablename__='assessments'
- id=Column(Integer,primary_key=True);garment_id=Column(Integer,ForeignKey('garments.id'),nullable=False);profile_id=Column(Integer,ForeignKey('profiles.id'),nullable=False);state=Column(String(20),default='queued');result=Column(JSON,nullable=True);error=Column(String(500),default='')
+ id=Column(Integer,primary_key=True);garment_id=Column(Integer,ForeignKey('garments.id'),nullable=False);profile_id=Column(Integer,ForeignKey('profiles.id'),nullable=False);state=Column(String(20),default='queued');result=Column(JSON,nullable=True);error=Column(String(500),default='');created_at=Column(String(32),nullable=True);completed_at=Column(String(32),nullable=True)
 class Fitting(Base):
  __tablename__='fittings'
  id=Column(Integer,primary_key=True);garment_id=Column(Integer,ForeignKey('garments.id'),nullable=False);profile_id=Column(Integer,ForeignKey('profiles.id'),nullable=False);slot=Column(Integer,nullable=False);starts=Column(String(32),nullable=False);ends=Column(String(32),nullable=False);state=Column(String(20),default='reserved',nullable=False)
 class Sale(Base):
  __tablename__='sales'
  id=Column(Integer,primary_key=True);fitting_id=Column(Integer,ForeignKey('fittings.id'),unique=True,nullable=False);garment_id=Column(Integer,ForeignKey('garments.id'),nullable=False);price_cents=Column(Integer,nullable=False);commission_bp=Column(Integer,nullable=False);commission_cents=Column(Integer,nullable=False);net_cents=Column(Integer,nullable=False);sold_at=Column(String(32),nullable=False);return_deadline=Column(String(32),nullable=False);state=Column(String(20),default='completed',nullable=False)
+ # 成交依据快照：采用哪次适配结论、哪一轮在架、哪份协议。新成交必填，旧数据缺失时结算会拒绝。
+ assessment_id=Column(Integer,ForeignKey('assessments.id'),nullable=True);fit_label=Column(String(20),nullable=True);fit_snapshot=Column(JSON,nullable=True)
+ listing_id=Column(Integer,nullable=True);listed_at=Column(String(32),nullable=True);cycle=Column(Integer,nullable=True)
+ agreement_id=Column(Integer,ForeignKey('agreements.id'),nullable=True);agreement_code=Column(String(40),nullable=True);agreement_snapshot=Column(JSON,nullable=True)
+class Listing(Base):
+ __tablename__='listings'
+ id=Column(Integer,primary_key=True);garment_id=Column(Integer,ForeignKey('garments.id'),nullable=False);sequence=Column(Integer,nullable=False);listed_at=Column(String(32),nullable=False);source=Column(String(20),default='measure',nullable=False);ended_at=Column(String(32),nullable=True);end_reason=Column(String(20),default='',nullable=False);sale_id=Column(Integer,ForeignKey('sales.id'),nullable=True,unique=True)
+ # 本轮上架之前已存在的适配记录编号上界；只有在此之后产生的结论才能作为本轮成交依据。
+ assessment_floor=Column(Integer,default=0,nullable=False)
 class Return(Base):
  __tablename__='returns'
  id=Column(Integer,primary_key=True);sale_id=Column(Integer,ForeignKey('sales.id'),unique=True,nullable=False);reason=Column(String(500),nullable=False);state=Column(String(20),default='pending',nullable=False);inspection=Column(String(500),default='');outcome=Column(String(20),default='')

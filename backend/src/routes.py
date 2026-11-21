@@ -5,14 +5,22 @@ from .models import *
 from .schemas import *
 from .common import *
 from .security import current,allow
-from . import consignment_service as consignment,fit_service as fit,fitting_service as fitting,sale_service as sale,return_service as returns,settlement_service as settlement
+from . import consignment_service as consignment,fit_service as fit,fitting_service as fitting,sale_service as sale,return_service as returns,settlement_service as settlement,ledger
 router=APIRouter()
 def change(u,action,fn,supervisor=False):
  allow(u,*(['supervisor'] if supervisor else ['operator','supervisor']))
  with Session() as s:x=fn(s);audit(s,u,action,x);s.commit();return dump(x)
 @router.get('/register')
 def register(u=Depends(current)):
- with Session() as s:return {n:[dump(x) for x in rows(s,c)] for n,c in [('consignors',Consignor),('agreements',Agreement),('amendments',Amendment),('garments',Garment),('measurements',Measurement),('profiles',FitProfile),('assessments',FitAssessment),('fittings',Fitting),('sales',Sale),('returns',Return),('payouts',Payout),('withdrawals',Withdrawal),('clock',Shop)]}
+ with Session() as s:return {n:[dump(x) for x in rows(s,c)] for n,c in [('consignors',Consignor),('agreements',Agreement),('amendments',Amendment),('garments',Garment),('measurements',Measurement),('profiles',FitProfile),('assessments',FitAssessment),('listings',Listing),('fittings',Fitting),('sales',Sale),('returns',Return),('payouts',Payout),('withdrawals',Withdrawal),('clock',Shop)]}
+@router.get('/ledger')
+def ledger_all(u=Depends(current)):
+ with Session() as s:return ledger.reconcile(s)
+@router.get('/ledger/{garment_id}')
+def ledger_one(garment_id:int,u=Depends(current)):
+ with Session() as s:
+  get(s,Garment,garment_id)
+  return next(x for x in ledger.reconcile(s) if x['garment']['id']==garment_id)
 @router.get('/audit')
 def audits(u=Depends(current)):
  with Session() as s:return [dump(x) for x in rows(s,Audit)]
@@ -33,7 +41,8 @@ def assessments(d:AssessmentIn,u=Depends(current)):
  d=change(u,'适配计算',lambda s:fit.assess(s,d.model_dump()))
  try:redis.from_url(os.environ['REDIS_URL'],socket_connect_timeout=1,socket_timeout=2).rpush('resale:fit',d['id'])
  except Exception:
-  with Session() as s:x=s.get(FitAssessment,d['id']);x.state='failed';x.error='适配队列不可达，请重试';s.commit()
+  with Session() as s:
+   x=s.get(FitAssessment,d['id']);x.state='failed';x.error='适配队列不可达，请重试';c=lock(s);x.completed_at=c.now;s.commit()
   raise HTTPException(503,'适配队列暂时不可达，记录已标记失败，可重新提交')
  return d
 @router.post('/fittings')
